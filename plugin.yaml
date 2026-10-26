@@ -1,0 +1,50 @@
+name: surplus-intelligence-seller
+version: 0.1.0
+manifest_version: 2
+description: Sell all of today's Venice DIEM-funded inference capacity on Surplus Intelligence before the epoch resets.
+author: ProlowN
+license: MIT
+homepage: https://github.com/ProlowN/surplus-intelligence-seller
+requires_hermes: ">=0.19.0"
+tags:
+  - surplus
+  - venice
+  - diem
+  - seller
+  - inference
+provides_tools:
+  - surplus_seller_auth
+  - surplus_list_offers
+  - surplus_create_offer
+  - surplus_update_offer
+  - surplus_pause_or_cancel_offer
+  - surplus_resume_offer
+  - surplus_seller_earnings
+  - surplus_discover_venice_models
+  - surplus_test_venice_connection
+  - surplus_diem_capacity
+  - surplus_diem_utilization
+  - surplus_cover_venice_models
+  - surplus_rebalance_diem
+  - surplus_fill_remaining_diem
+# Load gates. SURPLUS_SELLER_API_KEY is optional_env, not required: the
+# surplus_seller_auth tool mints an si_seller_ key when one is not set.
+# Putting it in requires_env would disable the plugin before that mint can run.
+requires_env:
+  - name: VENICE_API_KEY
+    description: "Venice API key whose DIEM-funded inference capacity you are selling through. Stake DIEM on this account (1 DIEM ≈ $1 of Venice credit per day; unused epoch allowance does not roll over). The goal is to sell the whole allowance before 00:00 UTC."
+    url: "https://venice.ai/settings/api"
+    secret: true
+  - name: SURPLUS_SELLER_PAYOUT_ADDRESS
+    description: "Base wallet (0x…) that receives USDC earnings. Surplus settles to this address. It is not the throwaway SIWE wallet used to mint a seller key."
+    url: "https://www.surplusintelligence.ai/docs/getting-started/seller-quickstart"
+    secret: false
+optional_env:
+  - name: SURPLUS_SELLER_API_KEY
+    description: "Surplus seller key (si_seller_…). Optional. Leave unset and call surplus_seller_auth to mint one with a throwaway SIWE wallet (the private key is discarded). Paste the issued key here so it survives a Hermes restart."
+    url: "https://www.surplusintelligence.ai/docs/api-reference/seller-endpoints"
+    secret: true
+  - name: VENICE_ADMIN_API_KEY
+    description: "Optional Venice admin key for GET /api/v1/billing/balance (remaining DIEM plus diemEpochAllocation). The inference key in VENICE_API_KEY often receives 401 on that route; it can still read remaining DIEM from GET /api/v1/api_keys/rate_limits. Use an admin key on the same account to score sell-through against the full epoch allocation."
+    url: "https://docs.venice.ai/api-reference/endpoint/billing/balance"
+    secret: true

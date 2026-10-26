@@ -1,0 +1,19 @@
+[project]
+name = "surplus-intelligence-seller"
+version = "0.1.0"
+description = "Hermes plugin that sells Venice DIEM-funded inference capacity on Surplus Intelligence."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "ProlowN" }]
+dependencies = [
+    "eth-account>=0.13.7,<0.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0,<9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
