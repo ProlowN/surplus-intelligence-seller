@@ -8,7 +8,7 @@
 
 name: surplus-intelligence-seller
 repo: https://github.com/ProlowN/surplus-intelligence-seller
-sha: REPLACE_WITH_40_HEX_COMMIT_SHA
+sha: f29a0e2dbf4c77a0fe43524b134f6ebf2649cdb1
 subdir: ""
 description: >
   Sell the full daily Venice DIEM allowance on Surplus Intelligence before
