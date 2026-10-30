@@ -26,7 +26,7 @@ Run this several times each UTC day, and again in the last few hours:
 
 ## DIEM → Venice key → Surplus offer
 
-1. Stake DIEM and create a Venice API key (`VENICE_API_KEY`) dedicated to this seller, so the balance the plugin reads is the balance it is trying to sell. Do **not** set a Venice epoch consumption limit below the staked DIEM. That limit would strand allowance the same way a low Surplus cap would.
+1. Stake DIEM and create a Venice API key (`VENICE_API_KEY`) dedicated to this seller, so the balance the plugin reads is the balance it is trying to sell. Set that key's USD consumption limit to 0 if the account also holds paid credit (see [paid credit](#if-the-venice-account-also-holds-paid-credit)). Do **not** set a Venice epoch consumption limit below the staked DIEM. That limit would strand allowance the same way a low Surplus cap would.
 2. Optional: a Venice **admin** key (`VENICE_ADMIN_API_KEY`) on the same account. `GET /billing/balance` returns remaining DIEM and `diemEpochAllocation`. An inference key often gets 401 there; `GET /api_keys/rate_limits` still returns remaining DIEM and `nextEpochBegins`.
 3. Choose the Base wallet that receives USDC (`SURPLUS_SELLER_PAYOUT_ADDRESS`).
 4. Mint a Surplus seller key (`si_seller_…`) with `surplus_seller_auth`, or paste one you already have.
@@ -114,7 +114,19 @@ Margin versus a full sell-through is a real tradeoff. A 5% discount earns more p
 
 Pass an explicit `cost_multiplier` or `discount_pct` when you want a different price. `discount_pct` 15 is `cost_multiplier` 0.85. The create body sends `pricing_mode: cost_multiplier` and, when the discount is between 0 and 100, `discount` as well.
 
-`cap_daily_usd` defaults to the **epoch allocation** (the full day's DIEM budget), not a small stub and not "remaining" alone. Remaining can sit under spend Surplus has already counted and stop routing early. Each covered model gets that same ceiling; Venice itself stops when the DIEM balance hits zero, so one hot model can still consume the day. A cap below the remaining balance is called out as leftover risk.
+Every price, including one the model picks, has a hard floor: `cost_multiplier` **0.10** (`discount_pct` at most 90). Anything lower is rejected with `code: cost_multiplier_below_floor`, so the model cannot list your Venice capacity for free or near-free. The floor sits below the automatic 0.25 clearance band, leaving room for a deliberate last-minute fire sale. It is `MIN_COST_MULTIPLIER` in `strategy.py`.
+
+`cap_daily_usd` defaults to the **epoch allocation** (the full day's DIEM budget), not a small stub and not "remaining" alone. Remaining can sit under spend Surplus has already counted and stop routing early. Each covered model gets that same ceiling; on a DIEM-only key Venice itself stops when the DIEM balance hits zero (see paid credit below), so one hot model can still consume the day. A cap below the remaining balance is called out as leftover risk.
+
+#### If the Venice account also holds paid credit
+
+Venice draws on every balance the account has (DIEM, bundled credits, and paid USD credit) automatically; a request does not pick one. The plugin cannot tell Surplus "DIEM only". Each offer's `cap_daily_usd` defaults to the full epoch allocation, and every covered model gets that same cap, so the caps added together can be several times the day's DIEM. If the account holds paid credit, buyer traffic can keep routing after the DIEM is gone and be billed to that **paid USD balance**. Surplus still pays you the offer price, but at a discount that sale earns less than the USD it burns.
+
+To keep sales DIEM-only, use a dedicated Venice key for `VENICE_API_KEY` with **USD spending disabled**:
+
+- Recommended: in [venice.ai/settings/api](https://venice.ai/settings/api) set the key's Epoch Consumption Limit for **USD to 0** (or create it with USD spending disabled; via the API, `consumptionLimit: {"usd": 0}`). Leave the **DIEM** limit empty so the whole allowance stays sellable. Requests past the DIEM then fail with `402 API_KEY_USD_SPEND_LIMIT_EXCEEDED` instead of spending paid credit.
+- Or keep that key on an account that holds only staked DIEM and no paid USD balance.
+- Or pass explicit `cap_daily_usd` values on `surplus_create_offer` / `surplus_update_offer` so the caps summed across offers stay at or under the day's DIEM. This can leave DIEM unsold, and `surplus_rebalance_diem` / `surplus_fill_remaining_diem` with `apply=true` raise any cap below the epoch budget, so prefer the key limit above.
 
 Seller money fields named `*_usdc` are integer **micro-USD** strings (`"5000000"` is 5 USDC). The earnings tool returns both the raw field and a decimal USD conversion.
 
@@ -139,9 +151,11 @@ hermes plugins validate /path/to/surplus-intelligence-seller --install-deps
 ## Development
 
 ```bash
+git clone https://github.com/ProlowN/surplus-intelligence-seller surplus_intelligence_seller
+cd surplus_intelligence_seller   # the root __init__.py makes pytest import this dir as a package, so its name must be a valid identifier
 python -m venv .venv
-.venv/bin/pip install -e '.[dev]'
+.venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest
 ```
 
-Tests fake Surplus HTTP. They do not call Venice or Surplus.
+Tests fake Surplus HTTP. They do not call Venice or Surplus. pytest lives in `requirements-dev.txt`, not in `pyproject.toml`, so installing the plugin into Hermes never pulls a pytest pin that can conflict with Hermes core.

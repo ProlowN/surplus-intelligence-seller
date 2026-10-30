@@ -75,11 +75,11 @@ SURPLUS_CREATE_OFFER = {
             },
             "cost_multiplier": {
                 "type": "number",
-                "description": "Fraction of the Surplus reference price to charge, from 0 to 2. Use this or discount_pct.",
+                "description": "Fraction of the Surplus reference price to charge, from 0.10 to 2. Values below the 0.10 floor are rejected so capacity is never listed free. Use this or discount_pct.",
             },
             "discount_pct": {
                 "type": "number",
-                "description": "Percent off the reference price, from 0 to 100. 15 means cost_multiplier 0.85. A trailing % is accepted.",
+                "description": "Percent off the reference price, from 0 to 90 (the 0.10 multiplier floor). 15 means cost_multiplier 0.85. A trailing % is accepted.",
             },
             "cap_daily_usd": {
                 "type": "number",
@@ -106,11 +106,11 @@ SURPLUS_UPDATE_OFFER = {
             },
             "cost_multiplier": {
                 "type": "number",
-                "description": "New cost multiplier from 0 to 2.",
+                "description": "New cost multiplier from 0.10 to 2. Values below the 0.10 floor are rejected.",
             },
             "discount_pct": {
                 "type": "number",
-                "description": "New percent off the reference price, from 0 to 100.",
+                "description": "New percent off the reference price, from 0 to 90 (the 0.10 multiplier floor).",
             },
             "cap_daily_usd": {
                 "type": "number",

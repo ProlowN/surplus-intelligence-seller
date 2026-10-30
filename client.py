@@ -156,7 +156,7 @@ def parse_pricing(*, cost_multiplier: Any = None, discount_pct: Any = None) -> d
     """Build a cost_multiplier body. Per-token prices are retired for text."""
     if cost_multiplier is None and discount_pct is None:
         raise SurplusError(
-            "Provide cost_multiplier (0–2) or discount_pct (0–100). "
+            f"Provide cost_multiplier ({_MIN_MULT}–{_MAX_MULT}) or discount_pct (0–{_MAX_DISC}). "
             "Per-token pricing is retired and is not sent."
         )
 
@@ -178,8 +178,9 @@ def parse_pricing(*, cost_multiplier: Any = None, discount_pct: Any = None) -> d
                 "discount_pct 15 means cost_multiplier 0.85."
             )
 
-    if multiplier is None or not 0 <= multiplier <= 2:
-        raise SurplusError("cost_multiplier must be between 0 and 2 inclusive.")
+    if multiplier is None:
+        raise SurplusError(_MULTIPLIER_RANGE_ERROR)
+    _check_multiplier_bounds(multiplier)
 
     body: dict[str, Any] = {
         "pricing_mode": "cost_multiplier",
@@ -192,10 +193,31 @@ def parse_pricing(*, cost_multiplier: Any = None, discount_pct: Any = None) -> d
     return body
 
 
+_MIN_MULT = format(strategy.MIN_COST_MULTIPLIER, "g")
+_MAX_MULT = format(strategy.MAX_COST_MULTIPLIER, "g")
+_MAX_DISC = format(strategy.MAX_DISCOUNT_PCT, "g")
+_MULTIPLIER_RANGE_ERROR = (
+    f"cost_multiplier must be between {_MIN_MULT} and {_MAX_MULT} inclusive "
+    f"(discount_pct at most {_MAX_DISC})."
+)
+
+
+def _check_multiplier_bounds(number: float) -> None:
+    if number < strategy.MIN_COST_MULTIPLIER - 1e-9:
+        raise SurplusError(
+            f"cost_multiplier {format(number, 'g')} is below the floor of {_MIN_MULT} "
+            f"({_MAX_DISC}% off). The plugin will not list Venice capacity for free or "
+            f"near-free. Use {_MIN_MULT} or higher; the automatic clearance price is "
+            f"{format(1 - strategy.CLEARANCE_DISCOUNT_PCT / 100, 'g')}.",
+            code="cost_multiplier_below_floor",
+        )
+    if number > strategy.MAX_COST_MULTIPLIER + 1e-9:
+        raise SurplusError(_MULTIPLIER_RANGE_ERROR)
+
+
 def _parse_multiplier(value: Any) -> float:
     number = _finite_number(value, "cost_multiplier")
-    if not 0 <= number <= 2:
-        raise SurplusError("cost_multiplier must be between 0 and 2 inclusive.")
+    _check_multiplier_bounds(number)
     return number
 
 
@@ -206,8 +228,15 @@ def _parse_discount(value: Any) -> float:
             stripped = stripped[:-1].strip()
         value = stripped
     number = _finite_number(value, "discount_pct")
-    if not 0 <= number <= 100:
-        raise SurplusError("discount_pct must be between 0 and 100 inclusive.")
+    if number < 0:
+        raise SurplusError(f"discount_pct must be between 0 and {_MAX_DISC} inclusive.")
+    if number > strategy.MAX_DISCOUNT_PCT + 1e-9:
+        raise SurplusError(
+            f"discount_pct {format(number, 'g')} is above the maximum of {_MAX_DISC} "
+            f"(cost_multiplier floor {_MIN_MULT}). The plugin will not list Venice "
+            "capacity for free or near-free.",
+            code="cost_multiplier_below_floor",
+        )
     return number
 
 

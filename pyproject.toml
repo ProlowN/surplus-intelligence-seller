@@ -10,10 +10,5 @@ dependencies = [
     "eth-account>=0.13.7,<0.15",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0,<9",
-]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]

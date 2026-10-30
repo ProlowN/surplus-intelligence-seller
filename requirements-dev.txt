@@ -1,0 +1,6 @@
+# Local test environment only. Hermes never installs this file, and it is not
+# referenced from pyproject.toml, so its pins cannot conflict with Hermes core.
+# Runtime dependency (mirrors [project].dependencies in pyproject.toml):
+eth-account>=0.13.7,<0.15
+# Test runner. Range overlaps Hermes core's pytest pin.
+pytest>=8,<10
