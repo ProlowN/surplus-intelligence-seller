@@ -30,6 +30,14 @@ LATE_DISCOUNT_PCT = 45.0
 URGENT_DISCOUNT_PCT = 60.0
 CLEARANCE_DISCOUNT_PCT = 75.0
 
+# Hard floor for any multiplier, including one the model passes explicitly.
+# 0.10 (90% off) leaves room for a deliberate fire sale below the automatic
+# 0.25 clearance band, but stops the model from listing Venice capacity for
+# free or near-free (0.00 earns nothing, even on DIEM that would expire).
+MIN_COST_MULTIPLIER = 0.10
+MAX_COST_MULTIPLIER = 2.0
+MAX_DISCOUNT_PCT = 90.0  # == (1 - MIN_COST_MULTIPLIER) * 100
+
 ROUTINE = (
     "Run surplus_diem_capacity and surplus_rebalance_diem apply=true several "
     "times each UTC day. In the last 6 hours, and whenever leftover_diem_risk "

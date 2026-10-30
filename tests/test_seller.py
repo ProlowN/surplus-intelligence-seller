@@ -130,6 +130,62 @@ def test_pricing_and_retired_per_token(plugin):
     assert client_mod.micro_usdc_to_usd("5000000") == "5.000000"
 
 
+@pytest.mark.parametrize("value", [0, 0.0, "0", 0.01, 0.0999, -0.5])
+def test_cost_multiplier_floor_rejects_free_or_near_free(plugin, value):
+    _module, client_mod = plugin
+    with pytest.raises(client_mod.SurplusError) as excinfo:
+        client_mod.parse_pricing(cost_multiplier=value)
+    if float(value) >= 0:
+        assert excinfo.value.code == "cost_multiplier_below_floor"
+        assert "0.1" in excinfo.value.message
+
+
+@pytest.mark.parametrize("value", [100, "95%", 90.5])
+def test_discount_above_floor_is_rejected(plugin, value):
+    _module, client_mod = plugin
+    with pytest.raises(client_mod.SurplusError) as excinfo:
+        client_mod.parse_pricing(discount_pct=value)
+    assert excinfo.value.code == "cost_multiplier_below_floor"
+
+
+def test_cost_multiplier_floor_boundaries(plugin):
+    _module, client_mod = plugin
+    from surplus_intelligence_seller import strategy
+
+    assert strategy.MIN_COST_MULTIPLIER == pytest.approx(0.10)
+    assert strategy.MAX_DISCOUNT_PCT == pytest.approx((1 - strategy.MIN_COST_MULTIPLIER) * 100)
+    # The automatic clearance band must stay above the hard floor.
+    assert 1 - strategy.CLEARANCE_DISCOUNT_PCT / 100 >= strategy.MIN_COST_MULTIPLIER
+    assert client_mod.parse_pricing(cost_multiplier=0.10)["cost_multiplier"] == pytest.approx(0.10)
+    assert client_mod.parse_pricing(discount_pct=90)["cost_multiplier"] == pytest.approx(0.10)
+    assert client_mod.parse_pricing(cost_multiplier=0.25)["discount"] == pytest.approx(75)
+    assert client_mod.parse_pricing(cost_multiplier=2)["cost_multiplier"] == 2
+    with pytest.raises(client_mod.SurplusError):
+        client_mod.parse_pricing(cost_multiplier=2.01)
+
+
+def test_update_offer_floor_blocks_before_network(plugin):
+    _module, client_mod = plugin
+    calls = []
+
+    def transport(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("no network call expected")
+
+    client = client_mod.SurplusClient(transport=transport, secret_lookup=lambda name: None)
+    with pytest.raises(client_mod.SurplusError) as excinfo:
+        client.update_offer(offer_id="off_1", cost_multiplier=0)
+    assert excinfo.value.code == "cost_multiplier_below_floor"
+    assert calls == []
+
+
+def test_pyproject_has_no_dev_extra_that_conflicts_with_hermes():
+    text = (ROOT / "pyproject.toml").read_text()
+    assert "optional-dependencies" not in text
+    assert "pytest" not in text.split("[tool.pytest.ini_options]")[0]
+    assert "pytest" in (ROOT / "requirements-dev.txt").read_text()
+
+
 def test_siwe_mint_discards_private_key_and_caches_seller_key(plugin, monkeypatch):
     module, client_mod = plugin
     from eth_account import Account

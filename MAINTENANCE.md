@@ -26,7 +26,7 @@ The bands live in `strategy.py` (`OPENING_DISCOUNT_PCT` through `CLEARANCE_DISCO
 ## When Surplus changes
 
 - [ ] Idempotency-Key required set. Creates must send it on `POST /v1/seller/offers` and `POST /v1/seller/keys`. `POST /v1/seller/auth/keys` currently accepts it and does not require it. `PATCH` and `DELETE /v1/seller/offers/{id}` currently ignore it.
-- [ ] Pricing. Text offers must stay on `cost_multiplier` (0–2 on create) and/or `discount` (0–100). If per-token fields (`price_input_per_1m`, `price_output_per_1m`) come back, or the multiplier/discount split between text and media changes, update `parse_pricing` and the tool descriptions. `PATCH` has historically not enforced the create bounds.
+- [ ] Pricing. Text offers must stay on `cost_multiplier` (Surplus accepts 0–2 on create; this plugin enforces the `MIN_COST_MULTIPLIER` 0.10 floor) and/or `discount` (0–100). If per-token fields (`price_input_per_1m`, `price_output_per_1m`) come back, or the multiplier/discount split between text and media changes, update `parse_pricing` and the tool descriptions. `PATCH` has historically not enforced the create bounds.
 - [ ] Uniqueness. One active offer per `(api_key, seller_base_url, model)`. Conflicts are `409 duplicate_offer_for_credential`, with `error.detail.existing_offer_id` when the offer is yours. Resume and credential rotation re-check the same triple.
 - [ ] Pause / resume. Pause is `PATCH {"status":"paused"}` and is stored as `inactive`. Resume is `PATCH {"status":"active"}`. Cancel is `DELETE` (soft delete). Operator delist is `400 offer_delisted_by_operator` and is not reversible by resume.
 - [ ] Discover and probes. `POST /v1/seller/discover` and `POST /v1/seller/test-health` may stay NDJSON. `POST /v1/seller/test-connection` is one JSON object. Keep the Venice base URL hard-coded; do not accept another provider.
@@ -44,7 +44,7 @@ The bands live in `strategy.py` (`OPENING_DISCOUNT_PCT` through `CLEARANCE_DISCO
 
 ## Release check
 
-- [ ] `pytest` from this repo (fake HTTP; no live seller key required).
+- [ ] `pip install -r requirements-dev.txt` then `pytest` from this repo (fake HTTP; no live seller key required). Keep test deps out of `pyproject.toml`; Hermes resolves every table there against its own pins.
 - [ ] `hermes plugins validate . --install-deps` when the Hermes CLI is available. Declared `provides_tools` must match `register()`. No core tool overrides.
 - [ ] Bump `version` in `plugin.yaml` and `pyproject.toml` together.
 - [ ] Secrets stay on `get_secret` only. The SIWE private key stays inside the one-shot signing closure.
